@@ -1,0 +1,681 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>⚡ FOD — Preview Tool</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Syne:wght@400;700;800&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #07070e;
+    --surface: #0e0e1c;
+    --surface2: #141425;
+    --border: rgba(255,255,255,0.07);
+    --gold: #f5c842;
+    --gold2: #e07b00;
+    --red: #ff3c5f;
+    --cyan: #00e5ff;
+    --text: #dde0f0;
+    --muted: #555575;
+    --locked: #1a1a2e;
+    --ctrl-bg: #0a0a18;
+  }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Syne', sans-serif;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* ── CONTROL PANEL ── */
+  .ctrl-panel {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    background: rgba(7,7,14,0.95);
+    backdrop-filter: blur(20px);
+    border-bottom: 1px solid rgba(245,200,66,0.15);
+    padding: 14px 20px;
+  }
+
+  .ctrl-inner {
+    max-width: 700px;
+    margin: 0 auto;
+  }
+
+  .ctrl-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 12px;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .ctrl-label {
+    font-family: 'Space Mono', monospace;
+    font-size: 9px;
+    letter-spacing: 3px;
+    color: var(--muted);
+  }
+
+  .ctrl-badge {
+    font-family: 'Bebas Neue', cursive;
+    font-size: 13px;
+    letter-spacing: 2px;
+    color: var(--gold);
+    background: rgba(245,200,66,0.08);
+    border: 1px solid rgba(245,200,66,0.2);
+    border-radius: 6px;
+    padding: 3px 10px;
+  }
+
+  /* Time input */
+  .time-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 12px;
+  }
+
+  .time-input-wrap {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(245,200,66,0.2);
+    border-radius: 10px;
+    padding: 8px 14px;
+    flex: 1;
+    max-width: 220px;
+  }
+
+  .time-input-wrap input[type="time"] {
+    background: transparent;
+    border: none;
+    outline: none;
+    color: var(--gold);
+    font-family: 'Bebas Neue', cursive;
+    font-size: 22px;
+    letter-spacing: 2px;
+    width: 100%;
+    cursor: pointer;
+  }
+
+  .time-input-wrap input[type="time"]::-webkit-calendar-picker-indicator {
+    filter: invert(1) sepia(1) saturate(5) hue-rotate(10deg);
+    cursor: pointer;
+  }
+
+  .time-input-label {
+    font-family: 'Space Mono', monospace;
+    font-size: 9px;
+    letter-spacing: 2px;
+    color: var(--muted);
+    white-space: nowrap;
+  }
+
+  .sim-state-pill {
+    font-family: 'Space Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 1px;
+    padding: 6px 14px;
+    border-radius: 20px;
+    border: 1px solid;
+    white-space: nowrap;
+  }
+
+  .sim-state-pill.before  { color: var(--muted); border-color: var(--muted); background: rgba(85,85,117,0.1); }
+  .sim-state-pill.active  { color: var(--cyan);  border-color: var(--cyan);  background: rgba(0,229,255,0.08); }
+  .sim-state-pill.reveal  { color: var(--gold);  border-color: var(--gold);  background: rgba(245,200,66,0.1); }
+
+  /* Preset buttons */
+  .presets {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+  }
+
+  .preset-btn {
+    font-family: 'Space Mono', monospace;
+    font-size: 9px;
+    letter-spacing: 1px;
+    padding: 5px 10px;
+    border-radius: 6px;
+    border: 1px solid rgba(255,255,255,0.08);
+    background: rgba(255,255,255,0.03);
+    color: var(--muted);
+    cursor: pointer;
+    transition: all 0.2s;
+    white-space: nowrap;
+  }
+
+  .preset-btn:hover {
+    border-color: rgba(245,200,66,0.3);
+    color: var(--gold);
+    background: rgba(245,200,66,0.06);
+  }
+
+  .preset-btn.active-preset {
+    border-color: var(--gold);
+    color: var(--gold);
+    background: rgba(245,200,66,0.1);
+  }
+
+  .preset-btn.reveal-btn {
+    border-color: rgba(255,60,95,0.3);
+    color: #ff7a93;
+  }
+
+  .preset-btn.reveal-btn:hover,
+  .preset-btn.reveal-btn.active-preset {
+    border-color: var(--red);
+    color: var(--red);
+    background: rgba(255,60,95,0.08);
+  }
+
+  /* ── GAME PREVIEW AREA ── */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(245,200,66,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(245,200,66,0.03) 1px, transparent 1px);
+    background-size: 48px 48px;
+    z-index: 0;
+    pointer-events: none;
+  }
+
+  body::after {
+    content: '';
+    position: fixed;
+    top: -30%;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 700px; height: 400px;
+    background: radial-gradient(ellipse, rgba(245,200,66,0.07) 0%, transparent 70%);
+    z-index: 0;
+    pointer-events: none;
+    animation: breathe 6s ease-in-out infinite;
+  }
+
+  @keyframes breathe {
+    0%, 100% { opacity: 0.5; transform: translateX(-50%) scale(1); }
+    50% { opacity: 1; transform: translateX(-50%) scale(1.1); }
+  }
+
+  .page {
+    max-width: 480px;
+    margin: 0 auto;
+    padding: 30px 16px 60px;
+    position: relative;
+    z-index: 1;
+  }
+
+  /* PRE-GAME STATE */
+  .pregame-overlay {
+    display: none;
+    text-align: center;
+    padding: 60px 20px;
+    animation: fadeUp 0.4s ease both;
+  }
+
+  .pregame-overlay.show { display: block; }
+
+  .pregame-icon { font-size: 60px; margin-bottom: 16px; }
+
+  .pregame-title {
+    font-family: 'Bebas Neue', cursive;
+    font-size: 36px;
+    letter-spacing: 4px;
+    color: var(--muted);
+    margin-bottom: 8px;
+  }
+
+  .pregame-sub {
+    font-family: 'Space Mono', monospace;
+    font-size: 11px;
+    color: var(--muted);
+    letter-spacing: 1px;
+    margin-bottom: 24px;
+  }
+
+  .pregame-countdown {
+    font-family: 'Bebas Neue', cursive;
+    font-size: 52px;
+    letter-spacing: 6px;
+    color: var(--red);
+    text-shadow: 0 0 30px rgba(255,60,95,0.4);
+  }
+
+  /* HEADER */
+  .top-header { text-align: center; margin-bottom: 32px; }
+  .fod-eyebrow { font-family: 'Space Mono', monospace; font-size: 10px; letter-spacing: 5px; color: var(--muted); margin-bottom: 8px; }
+  .fod-title {
+    font-family: 'Bebas Neue', cursive;
+    font-size: 52px;
+    letter-spacing: 6px;
+    line-height: 1;
+    background: linear-gradient(180deg, #fff 0%, var(--gold) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  .fod-sub { font-size: 13px; color: var(--muted); margin-top: 6px; font-family: 'Space Mono', monospace; }
+  .fod-sub span { color: var(--gold); }
+
+  /* SILHOUETTE */
+  .mystery-figure { display: flex; justify-content: center; margin-bottom: 28px; }
+  .silhouette-wrap { position: relative; width: 100px; height: 100px; }
+  .silhouette {
+    width: 100px; height: 100px; border-radius: 50%;
+    background: linear-gradient(135deg, #1a1a30, #0e0e1c);
+    border: 2px solid rgba(245,200,66,0.2);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 44px;
+    filter: grayscale(1) brightness(0.3);
+    position: relative; overflow: hidden;
+    transition: all 0.8s ease;
+  }
+  .silhouette.revealed { filter: none; border-color: var(--gold); box-shadow: 0 0 50px rgba(245,200,66,0.4); }
+  .silhouette::before {
+    content: '?'; position: absolute; inset: 0;
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'Bebas Neue', cursive; font-size: 56px;
+    color: rgba(245,200,66,0.15); transition: opacity 0.5s ease;
+  }
+  .silhouette.revealed::before { opacity: 0; }
+  .pulse-ring {
+    position: absolute; inset: -8px; border-radius: 50%;
+    border: 1px solid rgba(245,200,66,0.15);
+    animation: pulse-out 2.5s ease-in-out infinite;
+  }
+  .pulse-ring:nth-child(2) { inset: -18px; animation-delay: 0.5s; opacity: 0.6; }
+  .pulse-ring:nth-child(3) { inset: -28px; animation-delay: 1s; opacity: 0.3; }
+  @keyframes pulse-out {
+    0% { transform: scale(0.95); opacity: 0.6; }
+    50% { transform: scale(1); opacity: 0.2; }
+    100% { transform: scale(0.95); opacity: 0.6; }
+  }
+
+  /* PROGRESS */
+  .progress-wrap { margin-bottom: 24px; }
+  .progress-label { display: flex; justify-content: space-between; font-family: 'Space Mono', monospace; font-size: 10px; color: var(--muted); margin-bottom: 8px; letter-spacing: 1px; }
+  .progress-label .count { color: var(--gold); }
+  .progress-bar { height: 3px; background: rgba(255,255,255,0.06); border-radius: 3px; overflow: hidden; }
+  .progress-fill { height: 100%; background: linear-gradient(90deg, var(--gold2), var(--gold)); border-radius: 3px; transition: width 0.6s cubic-bezier(0.4,0,0.2,1); width: 0%; }
+
+  /* STATUS BAR */
+  .status-bar { display: flex; align-items: center; justify-content: center; gap: 8px; font-family: 'Space Mono', monospace; font-size: 11px; color: var(--muted); margin-bottom: 24px; }
+  .status-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--red); animation: blink 1.2s ease-in-out infinite; }
+  @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.2; } }
+
+  /* CLUE CARDS */
+  .clues-stack { display: flex; flex-direction: column; gap: 10px; margin-bottom: 24px; }
+  .clue-card { border-radius: 14px; border: 1px solid var(--border); background: var(--surface); overflow: hidden; transition: all 0.4s ease; }
+  .clue-card.locked { background: var(--locked); border-color: rgba(255,255,255,0.04); }
+  .clue-card.unlocked { border-color: rgba(245,200,66,0.2); background: linear-gradient(135deg, #111122, #0e0e1c); }
+  .clue-card.unlocked:hover { border-color: rgba(245,200,66,0.35); transform: translateX(4px); }
+  .clue-inner { display: flex; align-items: center; gap: 14px; padding: 16px 18px; }
+  .clue-num { font-family: 'Bebas Neue', cursive; font-size: 22px; color: rgba(245,200,66,0.15); min-width: 28px; text-align: center; transition: color 0.4s; }
+  .clue-card.unlocked .clue-num { color: var(--gold); }
+  .clue-icon { width: 38px; height: 38px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 18px; background: rgba(255,255,255,0.04); flex-shrink: 0; transition: background 0.4s; filter: grayscale(1); }
+  .clue-card.unlocked .clue-icon { background: rgba(245,200,66,0.1); filter: none; }
+  .clue-content { flex: 1; }
+  .clue-tag { font-family: 'Space Mono', monospace; font-size: 9px; letter-spacing: 2px; color: var(--muted); text-transform: uppercase; margin-bottom: 4px; transition: color 0.4s; }
+  .clue-card.unlocked .clue-tag { color: rgba(245,200,66,0.5); }
+  .clue-text { font-size: 14px; font-weight: 700; color: var(--muted); transition: color 0.4s; line-height: 1.4; }
+  .clue-card.unlocked .clue-text { color: var(--text); }
+  .clue-lock { font-size: 16px; opacity: 0.2; flex-shrink: 0; transition: opacity 0.4s; }
+  .clue-card.unlocked .clue-lock { opacity: 0; width: 0; overflow: hidden; }
+
+  /* NEXT CLUE BAR */
+  .next-clue-bar { display: flex; align-items: center; justify-content: space-between; background: rgba(245,200,66,0.06); border: 1px solid rgba(245,200,66,0.2); border-radius: 12px; padding: 12px 20px; margin-bottom: 20px; }
+  .ncb-label { font-family: 'Space Mono', monospace; font-size: 10px; letter-spacing: 2px; color: var(--muted); }
+  .ncb-timer { font-family: 'Bebas Neue', cursive; font-size: 26px; letter-spacing: 3px; color: var(--gold); text-shadow: 0 0 16px rgba(245,200,66,0.4); }
+
+  /* REVEAL LOCK BOX */
+  .reveal-lock-wrap { display: flex; flex-direction: column; align-items: center; gap: 12px; margin-bottom: 20px; }
+  .reveal-lock-box { width: 100%; background: var(--surface); border: 1px solid rgba(245,200,66,0.15); border-radius: 16px; padding: 20px; display: flex; flex-direction: column; gap: 14px; }
+  .rlb-top { display: flex; align-items: center; gap: 12px; }
+  .rlb-icon { font-size: 26px; }
+  .rlb-title { font-family: 'Bebas Neue', cursive; font-size: 20px; letter-spacing: 2px; color: var(--gold); line-height: 1; }
+  .rlb-sub { font-family: 'Space Mono', monospace; font-size: 10px; color: var(--muted); margin-top: 3px; letter-spacing: 0.5px; }
+  .rlb-sub strong { color: var(--text); }
+  .reveal-timer-row { display: flex; align-items: center; justify-content: space-between; background: rgba(0,0,0,0.3); border-radius: 10px; padding: 10px 16px; border: 1px solid rgba(255,255,255,0.05); }
+  .rtimer-label { font-family: 'Space Mono', monospace; font-size: 9px; letter-spacing: 2px; color: var(--muted); }
+  .rtimer-val { font-family: 'Bebas Neue', cursive; font-size: 24px; letter-spacing: 3px; color: var(--red); text-shadow: 0 0 20px rgba(255,60,95,0.4); }
+  .btn-reveal-final { width: 100%; border: none; border-radius: 12px; padding: 16px; font-family: 'Bebas Neue', cursive; font-size: 18px; letter-spacing: 2px; cursor: pointer; transition: all 0.4s ease; }
+  .btn-reveal-final.reveal-locked { background: rgba(255,255,255,0.04); color: var(--muted); border: 1px dashed rgba(255,255,255,0.1); cursor: not-allowed; }
+  .btn-reveal-final.reveal-ready { background: linear-gradient(135deg, var(--gold2), var(--gold)); color: #000; box-shadow: 0 8px 30px rgba(245,200,66,0.3); animation: readyPulse 2s ease-in-out infinite; }
+
+  @keyframes readyPulse { 0%, 100% { box-shadow: 0 8px 30px rgba(245,200,66,0.3); } 50% { box-shadow: 0 8px 50px rgba(245,200,66,0.6); } }
+
+  /* REVEAL PANEL */
+  .reveal-panel { background: linear-gradient(135deg, rgba(245,200,66,0.08), rgba(0,229,255,0.03)); border: 1px solid rgba(245,200,66,0.25); border-radius: 18px; padding: 28px; text-align: center; display: none; margin-top: 10px; }
+  .reveal-panel.show { display: block; animation: revealBoom 0.8s cubic-bezier(0.175,0.885,0.32,1.275) both; }
+  @keyframes revealBoom { 0% { opacity: 0; transform: scale(0.7); } 60% { transform: scale(1.05); } 100% { opacity: 1; transform: scale(1); } }
+  .reveal-panel .crown { font-size: 40px; display: block; margin-bottom: 12px; }
+  .reveal-name { font-family: 'Bebas Neue', cursive; font-size: 54px; letter-spacing: 6px; background: linear-gradient(135deg, #fff 20%, var(--gold)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; line-height: 1; margin-bottom: 6px; }
+  .reveal-sub { font-family: 'Space Mono', monospace; font-size: 11px; color: var(--muted); letter-spacing: 2px; margin-bottom: 20px; }
+  .reveal-details { display: flex; justify-content: center; gap: 12px; flex-wrap: wrap; margin-bottom: 20px; }
+  .detail-pill { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 100px; padding: 6px 14px; font-size: 12px; color: var(--muted); display: flex; gap: 5px; align-items: center; }
+  .reveal-quote { font-size: 13px; color: rgba(255,255,255,0.6); font-style: italic; line-height: 1.7; border-top: 1px solid rgba(255,255,255,0.06); padding-top: 16px; }
+
+  @keyframes fadeUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+  @keyframes fadeDown { from { opacity: 0; transform: translateY(-20px); } to { opacity: 1; transform: translateY(0); } }
+</style>
+</head>
+<body>
+
+<!-- ── CONTROL PANEL ── -->
+<div class="ctrl-panel">
+  <div class="ctrl-inner">
+    <div class="ctrl-top">
+      <span class="ctrl-label">FOD PREVIEW TOOL — SIMULATE TIME</span>
+      <span class="ctrl-badge" id="ctrl-badge">● BEFORE GAME</span>
+    </div>
+
+    <div class="time-row">
+      <div class="time-input-wrap">
+        <input type="time" id="time-picker" value="10:59" step="1" oninput="onTimePick(this.value)">
+      </div>
+      <span class="time-input-label">SIMULATED<br>TIME</span>
+      <div class="sim-state-pill before" id="sim-pill">BEFORE GAME</div>
+    </div>
+
+    <div class="presets">
+      <button class="preset-btn" onclick="setPreset('10:59:00', this)">Before Game</button>
+      <button class="preset-btn" onclick="setPreset('11:00:00', this)">Clue 1 ↗</button>
+      <button class="preset-btn" onclick="setPreset('11:02:30', this)">Clue 2 ↗</button>
+      <button class="preset-btn" onclick="setPreset('11:05:00', this)">Clue 3 ↗</button>
+      <button class="preset-btn" onclick="setPreset('11:07:30', this)">Clue 4 ↗</button>
+      <button class="preset-btn" onclick="setPreset('11:10:00', this)">Clue 5 ↗</button>
+      <button class="preset-btn" onclick="setPreset('11:12:30', this)">Clue 6 ↗</button>
+      <button class="preset-btn" onclick="setPreset('11:15:00', this)">Clue 7 ↗</button>
+      <button class="preset-btn reveal-btn" onclick="setPreset('11:45:00', this)">🔓 Final Reveal</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── GAME PREVIEW ── -->
+<div class="page">
+
+  <!-- PRE-GAME STATE -->
+  <div class="pregame-overlay" id="pregame-overlay">
+    <div class="pregame-icon">🔒</div>
+    <div class="pregame-title">GAME HASN'T STARTED</div>
+    <div class="pregame-sub">FOD GAME BEGINS AT 11:00 AM</div>
+    <div class="pregame-countdown" id="pregame-countdown">--:--</div>
+  </div>
+
+  <!-- GAME STATE (shown when game is active) -->
+  <div id="game-view" style="display:none;">
+
+    <div class="top-header">
+      <div class="fod-eyebrow">DAILY CHALLENGE • CORE TEAM</div>
+      <div class="fod-title">WHO AM I?</div>
+      <div class="fod-sub">⚡ <span>Face of the Day</span> — Guess before the final reveal</div>
+    </div>
+
+    <div class="mystery-figure">
+      <div class="silhouette-wrap">
+        <div class="pulse-ring"></div>
+        <div class="pulse-ring"></div>
+        <div class="pulse-ring"></div>
+        <div class="silhouette" id="silhouette">🦁</div>
+      </div>
+    </div>
+
+    <div class="status-bar">
+      <div class="status-dot"></div>
+      <span id="status-text">IDENTITY LOCKED — UNLOCK CLUES TO GUESS</span>
+    </div>
+
+    <div class="progress-wrap">
+      <div class="progress-label">
+        <span>CLUES REVEALED</span>
+        <span class="count" id="progress-count">0 / 7</span>
+      </div>
+      <div class="progress-bar">
+        <div class="progress-fill" id="progress-fill"></div>
+      </div>
+    </div>
+
+    <div class="clues-stack" id="clues-stack"></div>
+
+    <div class="next-clue-bar" id="next-clue-bar" style="display:none;">
+      <span class="ncb-label">NEXT CLUE DROPS IN</span>
+      <span class="ncb-timer" id="ncb-timer">2:30</span>
+    </div>
+
+    <div class="reveal-lock-wrap" id="reveal-lock-wrap">
+      <div class="reveal-lock-box">
+        <div class="rlb-top">
+          <span class="rlb-icon">🎯</span>
+          <div>
+            <div class="rlb-title">FINAL REVEAL</div>
+            <div class="rlb-sub">Identity drops sharp at <strong>11:45 AM</strong></div>
+          </div>
+        </div>
+        <div class="reveal-timer-row" id="reveal-timer-row">
+          <span class="rtimer-label">UNLOCKS IN</span>
+          <span class="rtimer-val" id="reveal-timer">--:--:--</span>
+        </div>
+        <button class="btn-reveal-final reveal-locked" id="btn-reveal-final" disabled>
+          🔒 REVEAL UNLOCKS AT 11:45 AM
+        </button>
+      </div>
+    </div>
+
+    <div class="reveal-panel" id="reveal-panel">
+      <span class="crown">👑</span>
+      <div class="reveal-name">ASMIT KHASIYA</div>
+      <div class="reveal-sub">// THE SILENT OPERATOR — BATCH 2025</div>
+      <div class="reveal-details">
+        <div class="detail-pill">🏠 Nilgiri House</div>
+        <div class="detail-pill">🎓 BBA(G), Anand</div>
+        <div class="detail-pill">📍 Talaja</div>
+        <div class="detail-pill">🎮 eSports + Cricket</div>
+      </div>
+      <div class="reveal-quote">
+        "You don't always need to be the captain to be the most important player on the field."
+      </div>
+    </div>
+
+  </div><!-- end #game-view -->
+</div>
+
+<script>
+const GAME_START_H = 11, GAME_START_M = 0, GAME_START_S = 0;
+const CLUE_INTERVAL_SEC = 150; // 2m30s
+const REVEAL_H = 11, REVEAL_M = 45;
+const total = 7;
+
+const clues = [
+  { icon: "🌊", tag: "Clue 01 — The Forge",           text: "The shade the ocean envies. The height the clouds call home. That's where they forged him." },
+  { icon: "🎮", tag: "Clue 02 — The Double Arena",     text: "Same hands. Two battlefields. One grass, one screen. Both times — he's reading the game before it's played." },
+  { icon: "🏙️", tag: "Clue 03 — The War Station",     text: "He's in the city where four letters changed a billion mornings — he's not there for the product, he's there to study the empire behind it." },
+  { icon: "🗣️", tag: "Clue 04 — The One Word",        text: "Ask his friends who he is. They won't say his first name. They'll say the one word that says it all." },
+  { icon: "👑", tag: "Clue 05 — The Shadow Throne",    text: "Kings get the crown. But empires are built by the one standing just behind the throne." },
+  { icon: "🌊", tag: "Clue 06 — The Birthground",      text: "Where ancient caves hold secrets older than time, and the sea never stops talking — that's the soil that made him." },
+  { icon: "💰", tag: "Clue 07 — The Unwritten Blueprint", text: "He chose the language of ledgers and markets — not because the system told him to, but because you need to understand the rules before you break them. While others count pennies, he's already planning the empire the textbook forgot to mention." }
+];
+
+function pad(n) { return String(n).padStart(2,'0'); }
+
+// Parse "HH:MM:SS" or "HH:MM" into total seconds since midnight
+function timeToSec(str) {
+  const parts = str.split(':').map(Number);
+  return parts[0]*3600 + parts[1]*60 + (parts[2]||0);
+}
+
+function secToHMS(sec) {
+  const h = Math.floor(sec / 3600);
+  const m = Math.floor((sec % 3600) / 60);
+  const s = sec % 60;
+  return { h, m, s };
+}
+
+const GAME_START_SEC = GAME_START_H*3600 + GAME_START_M*60 + GAME_START_S;
+const REVEAL_SEC     = REVEAL_H*3600 + REVEAL_M*60;
+
+function getClueUnlockSec(index) {
+  return GAME_START_SEC + index * CLUE_INTERVAL_SEC;
+}
+
+function getRevealedCount(nowSec) {
+  let count = 0;
+  for (let i = 0; i < total; i++) {
+    if (nowSec >= getClueUnlockSec(i)) count++;
+    else break;
+  }
+  return count;
+}
+
+// Build clue cards once
+function buildClues() {
+  const stack = document.getElementById('clues-stack');
+  stack.innerHTML = '';
+  clues.forEach((c, i) => {
+    const div = document.createElement('div');
+    div.className = 'clue-card locked';
+    div.id = `clue-${i}`;
+    div.innerHTML = `
+      <div class="clue-inner">
+        <div class="clue-num">${pad(i+1)}</div>
+        <div class="clue-icon">${c.icon}</div>
+        <div class="clue-content">
+          <div class="clue-tag">${c.tag}</div>
+          <div class="clue-text" id="clue-text-${i}">???</div>
+        </div>
+        <div class="clue-lock" id="lock-${i}">🔒</div>
+      </div>`;
+    stack.appendChild(div);
+  });
+}
+
+function render(nowSec) {
+  const pregame = document.getElementById('pregame-overlay');
+  const gameView = document.getElementById('game-view');
+
+  // PRE-GAME
+  if (nowSec < GAME_START_SEC) {
+    pregame.classList.add('show');
+    gameView.style.display = 'none';
+    const diff = GAME_START_SEC - nowSec;
+    const { m, s } = secToHMS(diff);
+    document.getElementById('pregame-countdown').textContent = `${pad(m)}:${pad(s)}`;
+    updateBadge('before', `BEFORE GAME`);
+    return;
+  }
+
+  pregame.classList.remove('show');
+  gameView.style.display = 'block';
+
+  const revealed = getRevealedCount(nowSec);
+
+  // Update clue cards
+  clues.forEach((c, i) => {
+    const card   = document.getElementById(`clue-${i}`);
+    const textEl = document.getElementById(`clue-text-${i}`);
+    const lockEl = document.getElementById(`lock-${i}`);
+    if (i < revealed) {
+      card.classList.remove('locked');
+      card.classList.add('unlocked');
+      textEl.textContent = c.text;
+      lockEl.textContent = '✓';
+    } else {
+      card.classList.add('locked');
+      card.classList.remove('unlocked');
+      textEl.textContent = '???';
+      lockEl.textContent = '🔒';
+    }
+  });
+
+  // Progress
+  document.getElementById('progress-fill').style.width = (revealed / total * 100) + '%';
+  document.getElementById('progress-count').textContent = `${revealed} / ${total}`;
+
+  // Next clue bar
+  const bar = document.getElementById('next-clue-bar');
+  if (revealed < total) {
+    const nextSec = getClueUnlockSec(revealed);
+    const diff = nextSec - nowSec;
+    const { m, s } = secToHMS(diff);
+    document.getElementById('ncb-timer').textContent = `${m}:${pad(s)}`;
+    bar.style.display = 'flex';
+    document.getElementById('status-text').textContent = `CLUE ${revealed} OF ${total} REVEALED — KEEP GUESSING!`;
+  } else {
+    bar.style.display = 'none';
+    document.getElementById('status-text').textContent = 'ALL CLUES OUT — WAIT FOR 11:45 AM REVEAL!';
+  }
+
+  // Reveal button + timer
+  const btn     = document.getElementById('btn-reveal-final');
+  const timerEl = document.getElementById('reveal-timer');
+  const revealPanel = document.getElementById('reveal-panel');
+  const silhouette  = document.getElementById('silhouette');
+
+  if (nowSec >= REVEAL_SEC) {
+    btn.disabled = false;
+    btn.className = 'btn-reveal-final reveal-ready';
+    btn.innerHTML = '🎯 REVEAL IDENTITY ⚡';
+    if (timerEl) timerEl.style.display = 'none';
+    revealPanel.classList.add('show');
+    silhouette.classList.add('revealed');
+    document.getElementById('status-text').textContent = '🎉 IDENTITY REVEALED!';
+    updateBadge('reveal', '🔓 REVEALED');
+  } else {
+    const diff = REVEAL_SEC - nowSec;
+    const { h, m, s } = secToHMS(diff);
+    btn.disabled = true;
+    btn.className = 'btn-reveal-final reveal-locked';
+    btn.innerHTML = '🔒 REVEAL UNLOCKS AT 11:45 AM';
+    if (timerEl) { timerEl.style.display = ''; timerEl.textContent = `${pad(h)}:${pad(m)}:${pad(s)}`; }
+    revealPanel.classList.remove('show');
+    silhouette.classList.remove('revealed');
+    updateBadge('active', `CLUE ${revealed} / ${total} LIVE`);
+  }
+}
+
+function updateBadge(state, text) {
+  const badge = document.getElementById('ctrl-badge');
+  const pill  = document.getElementById('sim-pill');
+  badge.textContent = text;
+  pill.textContent  = text;
+  pill.className = 'sim-state-pill ' + state;
+}
+
+let currentTimeStr = '10:59:00';
+
+function onTimePick(val) {
+  currentTimeStr = val;
+  // Clear active preset
+  document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('active-preset'));
+  render(timeToSec(val));
+}
+
+function setPreset(timeStr, btn) {
+  currentTimeStr = timeStr;
+  // Trim to HH:MM for the input (browser time input is HH:MM)
+  const parts = timeStr.split(':');
+  document.getElementById('time-picker').value = parts[0] + ':' + parts[1];
+  document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('active-preset'));
+  btn.classList.add('active-preset');
+  render(timeToSec(timeStr));
+}
+
+// Init
+buildClues();
+render(timeToSec(currentTimeStr));
+</script>
+</body>
+</html>
